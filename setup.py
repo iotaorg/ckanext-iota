@@ -24,8 +24,7 @@ setup(
 	],
 	entry_points=\
 	"""
-        [ckan.plugins]
-	# Add plugins here, eg
-	# myplugin=ckanext.iota:PluginClass
+    [ckan.plugins]
+    iota_harvester=ckanext.iota:IotaHarvester
 	""",
 )
