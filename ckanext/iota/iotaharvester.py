@@ -52,9 +52,10 @@ class IotaHarvester(HarvesterBase):
         resources = self._format_resources_to_package_creation(content['resources'])
         dataset = {
           'id': harvest_object.guid,
-          'name': content['name'],
           'title': content['title'],
-          'resources': resources
+          'notes': content['description'],
+          'resources': resources,
+          'tags': content['keywords']
         }
 
         log.debug('Dataset dict: %s' % dataset)
@@ -69,8 +70,10 @@ class IotaHarvester(HarvesterBase):
 
     def _format_resources_to_package_creation(self, resources):
         def convert(resource):
-            url = resource['path']
-            _, extension = os.path.splitext(url)
-            return { 'url': url, 'format': extension[1:].upper() }
+            return {
+                     'name': resource['name'],
+                     'url': resource['path'],
+                     'format': resource['format']
+                   }
 
         return map(convert, resources)
