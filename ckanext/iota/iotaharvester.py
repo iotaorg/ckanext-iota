@@ -28,15 +28,21 @@ class IotaHarvester(HarvesterBase):
     def gather_stage(self, harvest_job):
         log.debug('In IotaHarvester gather_stage (%s)' % harvest_job.source.url)
 
-        base_url = harvest_job.source.url.rstrip('/')
-        guid = hashlib.sha1(base_url).hexdigest()
+        package_url = harvest_job.source.url
+        objects = []
+        related_packages = self._get_related_packages(package_url)
+        packages_urls = [package_url] + related_packages
+        for package_url in packages_urls:
+            base_url = package_url.rstrip('/')
+            guid = hashlib.sha1(base_url).hexdigest()
+            obj = HarvestObject(guid = guid, job = harvest_job)
+            log.debug(obj)
+            obj.save()
+            objects.append(obj)
 
-        obj = HarvestObject(guid = guid, job = harvest_job)
-        log.debug(obj)
-        obj.save()
-
-        log.debug('Object ids: [%s]' % obj.id)
-        return [obj.id]
+        object_ids = [obj.id for obj in objects]
+        log.debug('Object ids: %s' % object_ids)
+        return object_ids
 
     def fetch_stage(self, harvest_object):
         log.debug('In IotaHarvester fetch_stage (%s)' % harvest_object.guid)
@@ -62,6 +68,14 @@ class IotaHarvester(HarvesterBase):
 
         log.debug('Dataset dict: %s' % dataset)
         return self._create_or_update_package(dataset, harvest_object)
+
+    def _get_related_packages(self, base_url):
+        try:
+            datapackage = self._get_datapackage(base_url)
+            content = json.loads(datapackage)
+            return content.get('related', [])
+        except TypeError:
+            raise Exception(datapackage)
 
     def _get_datapackage(self, base_url):
         try:

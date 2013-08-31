@@ -28,6 +28,22 @@ class TestIota(unittest.TestCase):
             harvest_object.assert_called_with(guid = guid, job = job)
             assert result == [instance.id], result
 
+    @mock.patch.object(IotaHarvester, '_get_datapackage')
+    def test_gather_stage_with_related_packages(self, _get_datapackage):
+        job = Mock()
+        job.source.url = 'http://iota_source//'
+        related = [
+            'http://iota_source/some_indicator',
+            'http://iota_source/other_indicator'
+        ]
+        _get_datapackage.return_value = json.dumps({ 'related': related })
+        with mock.patch('ckanext.iota.iotaharvester.HarvestObject') as harvest_object:
+            result = IotaHarvester().gather_stage(job)
+
+            harvest_obj_count = 1 + len(related)
+            assert harvest_object.return_value.save.call_count == harvest_obj_count
+            assert len(result) == harvest_obj_count, result
+
     def test_fetch_stage(self):
         harvest_object = Mock()
         harvest_object.source.url = 'http://iota_source//'
