@@ -16,7 +16,7 @@ Mock = mock.Mock
 
 class TestIota(unittest.TestCase):
     def test_gather_stage(self):
-        job = Mock(spec=HarvestJob)
+        job = Mock()
         job.source.url = 'http://iota_source//'
         with mock.patch('ckanext.iota.iotaharvester.HarvestObject') as harvest_object:
             instance = harvest_object.return_value
@@ -29,7 +29,7 @@ class TestIota(unittest.TestCase):
             assert result == [instance.id], result
 
     def test_fetch_stage(self):
-        harvest_object = Mock(spec=HarvestObject)
+        harvest_object = Mock()
         harvest_object.source.url = 'http://iota_source//'
 
         with mock.patch('urllib2.urlopen') as mock_urlopen:
@@ -53,24 +53,26 @@ class TestIota(unittest.TestCase):
 
     def test_import_stage(self):
         content = {
-            'title': 'Joao Pessoa',
-            'description': 'Some development indicators',
+            'title': u'Joao Pessoa',
+            'description': u'Some development indicators',
+            'author': u'The Author',
+            'author_email': u'author@email.com',
             'resources': [
                 {
-                    'name': 'Variáveis',
-                    'path': 'http://iota_source/variaveis.csv',
-                    'format': 'csv'
+                    'name': u'Variáveis',
+                    'path': u'http://iota_source/variaveis.csv',
+                    'format': u'csv'
                 },
                 {
-                    'name': 'Indicadores',
-                    'path': 'http://iota_source/indicadores.csv',
-                    'format': 'csv'
+                    'name': u'Indicadores',
+                    'path': u'http://iota_source/indicadores.csv',
+                    'format': u'csv'
                 }
             ],
             'keywords': [
-                'Brasil',
-                'PB',
-                'Joao Pessoa'
+                u'Brasil',
+                u'PB',
+                u'Joao Pessoa'
             ]
         }
         harvest_object = Mock(spec=HarvestObject)
@@ -86,23 +88,21 @@ class TestIota(unittest.TestCase):
             'id': harvest_object.guid,
             'title': content['title'],
             'notes': content['description'],
+            'author': content['author'],
+            'author_email': content['author_email'],
             'resources': [
                 {
-                    'name': 'Variáveis',
+                    'name': u'Variáveis',
                     'url': content['resources'][0]['path'],
-                    'format': 'CSV'
+                    'format': u'csv'
                 },
                 {
-                    'name': 'Indicadores',
+                    'name': u'Indicadores',
                     'url': content['resources'][1]['path'],
-                    'format': 'CSV'
+                    'format': u'csv'
                 },
             ],
-            'tags': [
-                'Brasil',
-                'PB',
-                'Joao Pessoa'
-            ]
+            'tags': content['keywords']
         }
         iota._create_or_update_package.assert_called_with(dataset_dict,
                 harvest_object)

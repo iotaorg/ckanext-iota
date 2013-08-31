@@ -54,6 +54,8 @@ class IotaHarvester(HarvesterBase):
           'id': harvest_object.guid,
           'title': content['title'],
           'notes': content['description'],
+          'author': content['author'],
+          'author_email': content['author_email'],
           'resources': resources,
           'tags': content['keywords']
         }
