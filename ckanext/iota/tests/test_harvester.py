@@ -108,8 +108,9 @@ class TestIota(unittest.TestCase):
 
         result = iota.import_stage(harvest_object)
 
+        dataset_id = hashlib.sha1(harvest_object.guid).hexdigest()
         dataset_dict = {
-            'id': harvest_object.guid,
+            'id': dataset_id,
             'title': content['title'],
             'notes': content['description'],
             'author': content['author'],

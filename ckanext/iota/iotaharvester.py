@@ -58,8 +58,9 @@ class IotaHarvester(HarvesterBase):
         log.debug(harvest_object)
         content = json.loads(harvest_object.content)
         resources = self._format_resources_to_package_creation(content['resources'])
+        dataset_id = hashlib.sha1(harvest_object.guid).hexdigest()
         dataset = {
-          'id': harvest_object.guid,
+          'id': dataset_id,
           'title': content['title'],
           'notes': content['description'],
           'author': content['author'],
