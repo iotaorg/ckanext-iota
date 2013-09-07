@@ -15,12 +15,14 @@ Mock = mock.Mock
 
 
 class TestIota(unittest.TestCase):
-    def test_gather_stage(self):
+    @mock.patch('urllib2.urlopen')
+    def test_gather_stage(self, urlopen):
         job = Mock()
         job.source.url = 'http://iota_source//'
+        urlopen.return_value.read.return_value = json.dumps({'related': []})
         with mock.patch('ckanext.iota.iotaharvester.HarvestObject') as harvest_object:
             instance = harvest_object.return_value
-            guid = hashlib.sha1(job.source.url.rstrip('/')).hexdigest()
+            guid = job.source.url.rstrip('/')
 
             result = IotaHarvester().gather_stage(job)
 
@@ -28,15 +30,15 @@ class TestIota(unittest.TestCase):
             harvest_object.assert_called_with(guid = guid, job = job)
             assert result == [instance.id], result
 
-    @mock.patch.object(IotaHarvester, '_get_datapackage')
-    def test_gather_stage_with_related_packages(self, _get_datapackage):
+    @mock.patch('urllib2.urlopen')
+    def test_gather_stage_with_related_packages(self, urlopen):
         job = Mock()
         job.source.url = 'http://iota_source//'
         related = [
             'http://iota_source/some_indicator',
             'http://iota_source/other_indicator'
         ]
-        _get_datapackage.return_value = json.dumps({ 'related': related })
+        urlopen.return_value.read.return_value = json.dumps({ 'related': related })
         with mock.patch('ckanext.iota.iotaharvester.HarvestObject') as harvest_object:
             result = IotaHarvester().gather_stage(job)
 
@@ -44,28 +46,34 @@ class TestIota(unittest.TestCase):
             assert harvest_object.return_value.save.call_count == harvest_obj_count
             assert len(result) == harvest_obj_count, result
 
-    def test_fetch_stage(self):
+    @mock.patch('urllib2.urlopen')
+    def test_fetch_stage(self, urlopen):
         harvest_object = Mock()
-        harvest_object.source.url = 'http://iota_source//'
+        harvest_object.guid = 'http://iota_source//'
 
-        with mock.patch('urllib2.urlopen') as mock_urlopen:
-            content = {'some': 'json'}
-            mock_urlopen.return_value.read.return_value = json.dumps(content)
+        content = {'some': 'json'}
+        urlopen.return_value.read.return_value = json.dumps(content)
 
-            result = IotaHarvester().fetch_stage(harvest_object)
+        result = IotaHarvester().fetch_stage(harvest_object)
 
-            mock_urlopen.assert_called_with(harvest_object.source.url + '/datapackage.json')
-            harvest_object.save.assert_called()
-            assert harvest_object.content == json.dumps(content), harvest_object.content
-            assert result is True, result
+        urlopen.assert_called_with(harvest_object.guid + '/datapackage.json')
+        harvest_object.save.assert_called()
+        assert harvest_object.content == json.dumps(content), harvest_object.content
+        assert result is True, result
 
-    def test_get_datapackage_returns_empty_dict_on_error(self):
-        with mock.patch('urllib2.urlopen') as mock_urlopen:
-            mock_urlopen.side_effect = urllib2.URLError('Some URL Error ocurred')
+    @mock.patch('urllib2.urlopen')
+    def test_fetch_stage_doesnt_raise_if_couldnt_fetch_url(self, urlopen):
+        harvest_object = Mock()
+        harvest_object.guid = 'http://iota_source//'
 
-            result = IotaHarvester()._get_datapackage('some_url')
+        urlopen.side_effect = urllib2.URLError('Some URL Error ocurred')
 
-            assert json.loads(result) == {}, result
+        harvester = IotaHarvester()
+        harvester._save_object_error = Mock()
+        result = harvester.fetch_stage(harvest_object)
+
+        harvester._save_object_error.assert_called()
+        assert result == None, result
 
     def test_import_stage(self):
         content = {

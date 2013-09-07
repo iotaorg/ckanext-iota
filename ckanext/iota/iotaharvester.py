@@ -34,9 +34,8 @@ class IotaHarvester(HarvesterBase):
         packages_urls = [package_url] + related_packages
         for package_url in packages_urls:
             base_url = package_url.rstrip('/')
-            guid = hashlib.sha1(base_url).hexdigest()
+            guid = base_url
             obj = HarvestObject(guid = guid, job = harvest_job)
-            log.debug(obj)
             obj.save()
             objects.append(obj)
 
@@ -46,10 +45,13 @@ class IotaHarvester(HarvesterBase):
 
     def fetch_stage(self, harvest_object):
         log.debug('In IotaHarvester fetch_stage (%s)' % harvest_object.guid)
-        url = harvest_object.source.url
-        harvest_object.content = self._get_datapackage(url)
-        harvest_object.save()
-        return True
+        try:
+            harvest_object.content = self._get_datapackage(harvest_object.guid)
+            harvest_object.save()
+            return True
+        except Exception as e:
+            msg = 'Unable to get content for indicator - %s - %r'
+            self._save_object_error(msg % (harvest_object.guid, e), harvest_object)
 
     def import_stage(self, harvest_object):
         log.debug('In IotaHarvester import_stage (%s)' % harvest_object.guid)
@@ -78,11 +80,8 @@ class IotaHarvester(HarvesterBase):
             raise Exception(datapackage)
 
     def _get_datapackage(self, base_url):
-        try:
-            url = base_url + '/datapackage.json'
-            return urllib2.urlopen(url).read()
-        except urllib2.URLError:
-            return '{}'
+        url = base_url + '/datapackage.json'
+        return urllib2.urlopen(url).read()
 
     def _format_resources_to_package_creation(self, resources):
         def convert(resource):
