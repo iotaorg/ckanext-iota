@@ -5,6 +5,8 @@ import hashlib
 import json
 import urllib2
 
+import ckan.logic
+import ckan.lib.base
 import ckanext.harvest.model
 import ckanext.iota.iotaharvester
 
@@ -99,9 +101,10 @@ class TestIota(unittest.TestCase):
                 u'Joao Pessoa'
             ]
         }
-        harvest_object = Mock(spec=HarvestObject)
+        harvest_object = Mock()
         harvest_object.guid = 'object_guid'
         harvest_object.content = json.dumps(content)
+        harvest_object.source.config = '{"groups": ["brasil"]}'
         iota = IotaHarvester()
         iota._create_or_update_package = Mock()
         iota._create_or_update_package.return_value = True
@@ -127,8 +130,59 @@ class TestIota(unittest.TestCase):
                     'format': u'csv'
                 },
             ],
-            'tags': content['keywords']
+            'tags': content['keywords'],
+            'groups': ['brasil'],
+            'extras': {
+                'source_url': harvest_object.guid
+            }
         }
         iota._create_or_update_package.assert_called_with(dataset_dict,
                 harvest_object)
         assert result is True, result
+
+    @mock.patch('ckan.lib.base')
+    @mock.patch('ckan.logic.get_action')
+    def test_validate_config(self, base, get_action):
+        get_action.return_value.return_value = 'the_group'
+        base.c.user = 'user'
+        config = {
+            'api_version': 1,
+            'groups': ['valid_group']
+        }
+        IotaHarvester().validate_config(json.dumps(config))
+
+    def test_validate_config_accepts_no_config(self):
+        config = None
+        IotaHarvester().validate_config(config)
+
+    def test_validate_config_rejects_invalid_options(self):
+        config = { 'invalid_option': 'value' }
+        self.assertRaises(ValueError,
+                          IotaHarvester().validate_config, json.dumps(config))
+
+    def test_validate_config_requires_api_version_to_be_integer(self):
+        config = { 'api_version': 'not_an_integer' }
+        self.assertRaises(ValueError,
+                          IotaHarvester().validate_config, json.dumps(config))
+
+    @mock.patch('ckan.lib.base')
+    def test_validate_config_requires_groups_to_exist(self, base):
+        base.c.user = 'user'
+        config = { 'groups': ['inexistent_group'] }
+        self.assertRaises(ckan.logic.NotFound,
+                          IotaHarvester().validate_config, json.dumps(config))
+
+    @mock.patch('ckan.lib.base')
+    def test_validate_config_requires_groups_to_be_a_list(self, base):
+        base.c.user = 'user'
+        config = { 'groups': 'inexistent_group' }
+        self.assertRaises(ValueError,
+                          IotaHarvester().validate_config, json.dumps(config))
+
+    def test_set_config_uses_api_version_1_as_default(self):
+        harvest_job = Mock()
+        harvest_job.source.config = None
+        iota = IotaHarvester()
+        iota._set_config(harvest_job)
+
+        assert(iota.config['api_version'] == 1)
